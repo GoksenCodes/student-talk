@@ -4,11 +4,42 @@ import { NavLink } from "react-router-dom";
 import axios from "axios";
 
 export default function ConversationsList() {
+  const [conversations, setConversations] = useState({ status: "loading" });
+
+  useEffect(() => {
+    async function fetchData() {
+      setConversations({ status: "loading" });
+      try {
+        const res = await axios.get(
+          "https://slack.com/api/conversations.list?exclude_archived=true&token=" +
+            process.env.REACT_APP_SLACK_TOKEN
+        );
+        if (!res.data.ok) {
+          // it turns out that Slack gives back errors
+          //  with a 200 status code, so this is necessary
+          throw new Error(res.data.error);
+        }
+        setConversations({ status: "success", data: res.data });
+      } catch (error) {
+        setConversations({ status: "error", error });
+      }
+    }
+
+    fetchData();
+  }, [setConversations]);
+
   return (
     <Container>
-      <Item to="/c/general">#general</Item>
-      <Item to="/c/errors">#errors</Item>
-      <Item to="/c/random">#random</Item>
+      {conversations.status === "loading" && <p>Loading...</p>}
+      {conversations.status === "error" && <p>Error :(</p>}
+      {conversations.status === "success" &&
+        conversations.data.channels.map(channel => {
+          return (
+            <Item key={channel.id} to={`/c/${channel.id}`}>
+              #{channel.name}
+            </Item>
+          );
+        })}
     </Container>
   );
 }
